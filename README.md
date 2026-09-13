@@ -1,5 +1,19 @@
 # Browser History Plugin for Obsidian
 
+これは自分の使い方にカスタマイズしたフォークです。
+
+カスタム内容：
+
+- **時刻出力のON/OFF設定**（デフォルトOFF）: 設定画面の「Show time」トグルで、各行に `HH:mm` を表示するかどうかを切り替え可能。
+- **URLの "allow list" と "deny list"**: 設定画面でワイルドカード（`*`）付きのパターンを1行1つずつ指定可能。deny listにマッチしたURLは常に除外され（deny優先）、allow listが空の場合はdenyされない限り全て許可される。
+- **除外URL一覧のモーダル表示**: 生成済みの履歴ノートを開いた状態でコマンドパレットから「Show excluded URLs for this note」を実行すると、そのノートの日付で除外された（allowされていない／denyされた）URLとタイトル・理由の一覧がモーダル（Select from list of suggestions）で表示される。項目を選択するとそのURLをブラウザで開く。
+
+---
+
+Original README:
+
+# Browser History Plugin for Obsidian
+
 Sync your browser history to notes.
 
 <img src="assets/browser_history_preview.png" alt="Browser History" width="600"/>

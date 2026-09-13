@@ -1,7 +1,10 @@
 import type { TFile } from 'obsidian'
+import type { ExcludedEntry } from './excludedUrlsModal'
 import type BrowserHistoryPlugin from './main'
 import { dayjs } from './dayjs'
 import { DBClient } from './db'
+import { ExcludedUrlsModal } from './excludedUrlsModal'
+import { getExclusionReason } from './filter'
 import { log, notify } from './utils'
 
 /**
@@ -92,18 +95,76 @@ async function _syncNote(
     toDate: dayjs(date).add(1, 'day').toDate(),
   })
 
-  // return if no history
-  if (!records.length) {
+  const includedRecords = records.filter(v => !getExclusionReason(String(v.url ?? ''), plugin.settings))
+
+  // return if no history to write
+  if (!includedRecords.length) {
     log(`no history for ${fileName}`)
     return
   }
 
-  const content = records.map((v) => {
-    const timestamp = dayjs(v.visit_time as number).format('HH:mm')
-    return `- ${timestamp} [${v.title}](${v.url})`
+  const content = includedRecords.map((v) => {
+    if (plugin.settings.showTime) {
+      const timestamp = dayjs(v.visit_time as number).format('HH:mm')
+      return `- ${timestamp} [${v.title}](${v.url})`
+    }
+    return `- [${v.title}](${v.url})`
   }).join('\n')
 
   return upsertFile(plugin, { filePath, content })
+}
+
+/**
+ * Parses the date encoded in a history note's file name, based on the configured file name format.
+ */
+function parseDateFromFileName(plugin: BrowserHistoryPlugin, file: TFile): Date | undefined {
+  const folderPath = plugin.settings.folderPath
+  if (folderPath && !file.path.startsWith(`${folderPath}/`))
+    return undefined
+
+  const template = plugin.settings.fileNameFormat || 'YYYY-MM-DD'
+  const parsed = dayjs(file.basename, template, true)
+  return parsed.isValid() ? parsed.startOf('day').toDate() : undefined
+}
+
+/**
+ * Shows the URLs excluded (by the allow/deny lists) for the given history note.
+ */
+export async function showExcludedUrlsForFile(plugin: BrowserHistoryPlugin, file: TFile) {
+  const date = parseDateFromFileName(plugin, file)
+  if (!date) {
+    notify('This command must be run from a browser history note.')
+    return
+  }
+
+  const db = await loadDB(plugin)
+  if (!db)
+    return
+
+  const records = db.getUrls({
+    fromDate: date,
+    toDate: dayjs(date).add(1, 'day').toDate(),
+  })
+
+  const excluded: ExcludedEntry[] = records.flatMap((v) => {
+    const url = String(v.url ?? '')
+    const reason = getExclusionReason(url, plugin.settings)
+    return reason ? [{ title: String(v.title ?? ''), url, reason }] : []
+  })
+
+  if (!excluded.length) {
+    notify('No excluded URLs for this date.')
+    return
+  }
+
+  new ExcludedUrlsModal(plugin.app, excluded).open()
+}
+
+/**
+ * Checks whether the given file (or the active file) is a browser history note.
+ */
+export function isHistoryNoteFile(plugin: BrowserHistoryPlugin, file: TFile | null): file is TFile {
+  return !!file && !!parseDateFromFileName(plugin, file)
 }
 
 /**

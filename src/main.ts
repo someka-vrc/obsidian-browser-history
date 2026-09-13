@@ -1,7 +1,7 @@
 import type { DBClient } from './db'
 import type { BrowserHistoryPluginSettings } from './setting'
 import { Plugin } from 'obsidian'
-import { openTodayHistory, syncNotes } from './commands'
+import { isHistoryNoteFile, openTodayHistory, showExcludedUrlsForFile, syncNotes } from './commands'
 import { BrowserHistorySettingTab, DEFAULT_SETTINGS } from './setting'
 
 export default class BrowserHistoryPlugin extends Plugin {
@@ -18,6 +18,19 @@ export default class BrowserHistoryPlugin extends Plugin {
       e => openTodayHistory(this, e.metaKey),
     )
     this.addSettingTab(new BrowserHistorySettingTab(this))
+
+    this.addCommand({
+      id: 'show-excluded-urls',
+      name: 'Show excluded URLs for this note',
+      checkCallback: (checking) => {
+        const file = this.app.workspace.getActiveFile()
+        if (!isHistoryNoteFile(this, file))
+          return false
+        if (!checking)
+          showExcludedUrlsForFile(this, file)
+        return true
+      },
+    })
 
     // sync on startup
     this.app.workspace.onLayoutReady(() => {

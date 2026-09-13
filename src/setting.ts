@@ -12,10 +12,16 @@ export interface BrowserHistoryPluginSettings {
   syncOnStartup?: boolean
   autoSyncMs?: number
   fileNameFormat?: string
+  showTime?: boolean
+  allowList?: string[]
+  denyList?: string[]
 }
 
 export const DEFAULT_SETTINGS: BrowserHistoryPluginSettings = {
   folderPath: 'Browser History',
+  showTime: false,
+  allowList: [],
+  denyList: [],
 }
 
 export class BrowserHistorySettingTab extends PluginSettingTab {
@@ -33,6 +39,9 @@ export class BrowserHistorySettingTab extends PluginSettingTab {
     this.addCheckConnectionSetting()
     this.addFileLocationSetting()
     this.addFileNameFormatSetting()
+    this.addShowTimeSetting()
+    this.addAllowListSetting()
+    this.addDenyListSetting()
     const startDateSetting = this.addStartDateSetting()
     this.addSyncSetting(startDateSetting)
     this.addSyncOnStartupSetting()
@@ -137,6 +146,55 @@ export class BrowserHistorySettingTab extends PluginSettingTab {
       const previewText = dayjs().format(template || 'YYYY-MM-DD')
       container.textContent = `${previewText}.md`
     }
+  }
+
+  private addShowTimeSetting() {
+    new Setting(this.containerEl)
+      .setName('Show time')
+      .setDesc('Show the visit time (HH:mm) before each entry.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showTime ?? false)
+        .onChange(async (value) => {
+          this.plugin.settings.showTime = value
+          await this.plugin.saveSettings()
+        }),
+      )
+  }
+
+  private addAllowListSetting() {
+    new Setting(this.containerEl)
+      .setName('Allow list')
+      .setDesc(createFragment((frag) => {
+        frag.appendText('Only URLs matching one of these wildcard patterns (* = any characters) will be synced.')
+        frag.createEl('br')
+        frag.appendText('Leave empty to allow everything (unless matched by the deny list). One pattern per line.')
+      }))
+      .addTextArea(text => text
+        .setPlaceholder('*example.com*')
+        .setValue((this.plugin.settings.allowList || []).join('\n'))
+        .onChange(async (value) => {
+          this.plugin.settings.allowList = value.split('\n').map(v => v.trim()).filter(Boolean)
+          await this.plugin.saveSettings()
+        }),
+      )
+  }
+
+  private addDenyListSetting() {
+    new Setting(this.containerEl)
+      .setName('Deny list')
+      .setDesc(createFragment((frag) => {
+        frag.appendText('URLs matching one of these wildcard patterns (* = any characters) will never be synced.')
+        frag.createEl('br')
+        frag.appendText('Takes priority over the allow list. One pattern per line.')
+      }))
+      .addTextArea(text => text
+        .setPlaceholder('*example.com*')
+        .setValue((this.plugin.settings.denyList || []).join('\n'))
+        .onChange(async (value) => {
+          this.plugin.settings.denyList = value.split('\n').map(v => v.trim()).filter(Boolean)
+          await this.plugin.saveSettings()
+        }),
+      )
   }
 
   private addStartDateSetting() {
