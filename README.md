@@ -2,20 +2,20 @@
 
 This is a fork customized for my own workflow.
 
-## Added Settings
+## Settings
 
-### Show Time
+### Show Time (Added)
 Toggle whether to show the `HH:mm` time on each line. Default: off.
 
-### Allow List / Deny List
+### Allow List / Deny List (Added)
 Specify wildcard (`*`) patterns for URLs, one pattern per line. URLs matching the deny list are always excluded (deny takes priority). If the allow list is empty, everything is allowed unless denied.
 
-### Uniquify
+### Uniquify (Added)
 Skip entries in a day whose title and path match an already-output entry, absorbing differences in query strings. Default: on.
 
-## Added Commands
+## Commands
 
-### Show excluded URLs for this note
+### Show excluded URLs for this note (Added)
 While a generated history note is open, run this command from the command palette to show a modal (select-from-list) listing the URLs excluded for that note's date (not allowed, or denied), along with their title and the reason for exclusion. Selecting an item opens that URL in the browser.
 
 ---
