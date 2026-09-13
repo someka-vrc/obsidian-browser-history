@@ -15,6 +15,7 @@ export interface BrowserHistoryPluginSettings {
   showTime?: boolean
   allowList?: string[]
   denyList?: string[]
+  uniquify?: boolean
 }
 
 export const DEFAULT_SETTINGS: BrowserHistoryPluginSettings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: BrowserHistoryPluginSettings = {
   showTime: false,
   allowList: [],
   denyList: [],
+  uniquify: true,
 }
 
 export class BrowserHistorySettingTab extends PluginSettingTab {
@@ -42,6 +44,7 @@ export class BrowserHistorySettingTab extends PluginSettingTab {
     this.addShowTimeSetting()
     this.addAllowListSetting()
     this.addDenyListSetting()
+    this.addUniquifySetting()
     const startDateSetting = this.addStartDateSetting()
     this.addSyncSetting(startDateSetting)
     this.addSyncOnStartupSetting()
@@ -192,6 +195,19 @@ export class BrowserHistorySettingTab extends PluginSettingTab {
         .setValue((this.plugin.settings.denyList || []).join('\n'))
         .onChange(async (value) => {
           this.plugin.settings.denyList = value.split('\n').map(v => v.trim()).filter(Boolean)
+          await this.plugin.saveSettings()
+        }),
+      )
+  }
+
+  private addUniquifySetting() {
+    new Setting(this.containerEl)
+      .setName('Uniquify')
+      .setDesc('Skip entries whose title and path (ignoring the query string) already appeared earlier that day.')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.uniquify ?? true)
+        .onChange(async (value) => {
+          this.plugin.settings.uniquify = value
           await this.plugin.saveSettings()
         }),
       )

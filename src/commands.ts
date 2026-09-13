@@ -4,7 +4,7 @@ import type BrowserHistoryPlugin from './main'
 import { dayjs } from './dayjs'
 import { DBClient } from './db'
 import { ExcludedUrlsModal } from './excludedUrlsModal'
-import { getExclusionReason } from './filter'
+import { classifyRecords } from './filter'
 import { log, notify } from './utils'
 
 /**
@@ -95,7 +95,7 @@ async function _syncNote(
     toDate: dayjs(date).add(1, 'day').toDate(),
   })
 
-  const includedRecords = records.filter(v => !getExclusionReason(String(v.url ?? ''), plugin.settings))
+  const { included: includedRecords } = classifyRecords(records, plugin.settings)
 
   // return if no history to write
   if (!includedRecords.length) {
@@ -146,11 +146,12 @@ export async function showExcludedUrlsForFile(plugin: BrowserHistoryPlugin, file
     toDate: dayjs(date).add(1, 'day').toDate(),
   })
 
-  const excluded: ExcludedEntry[] = records.flatMap((v) => {
-    const url = String(v.url ?? '')
-    const reason = getExclusionReason(url, plugin.settings)
-    return reason ? [{ title: String(v.title ?? ''), url, reason }] : []
-  })
+  const { excluded: excludedRecords } = classifyRecords(records, plugin.settings)
+  const excluded: ExcludedEntry[] = excludedRecords.map(({ record, reason }) => ({
+    title: String(record.title ?? ''),
+    url: String(record.url ?? ''),
+    reason,
+  }))
 
   if (!excluded.length) {
     notify('No excluded URLs for this date.')

@@ -9,7 +9,14 @@ export interface ExcludedEntry {
 }
 
 function reasonLabel(reason: ExclusionReason): string {
-  return reason === 'denied' ? 'Denied' : 'Not allowed'
+  switch (reason) {
+    case 'denied':
+      return 'Denied'
+    case 'duplicate':
+      return 'Duplicate'
+    default:
+      return 'Not allowed'
+  }
 }
 
 export class ExcludedUrlsModal extends SuggestModal<ExcludedEntry> {
