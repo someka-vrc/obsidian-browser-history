@@ -1,13 +1,22 @@
 # Browser History Plugin for Obsidian
 
-これは自分の使い方にカスタマイズしたフォークです。
+This is a fork customized for my own workflow.
 
-カスタム内容：
+## Added Settings
 
-- **時刻出力のON/OFF設定**（デフォルトOFF）: 設定画面の「Show time」トグルで、各行に `HH:mm` を表示するかどうかを切り替え可能。
-- **URLの "allow list" と "deny list"**: 設定画面でワイルドカード（`*`）付きのパターンを1行1つずつ指定可能。deny listにマッチしたURLは常に除外され（deny優先）、allow listが空の場合はdenyされない限り全て許可される。
-- **ユニーク化ON/OFF設定**（デフォルトON）: その日の中でタイトルとパスが一致するエントリを出力しない。（クエリ文字列違いを吸収する）
-- **除外URL一覧のモーダル表示**: 生成済みの履歴ノートを開いた状態でコマンドパレットから「Show excluded URLs for this note」を実行すると、そのノートの日付で除外された（allowされていない／denyされた）URLとタイトル・理由の一覧がモーダル（Select from list of suggestions）で表示される。項目を選択するとそのURLをブラウザで開く。
+### Show Time
+Toggle whether to show the `HH:mm` time on each line. Default: off.
+
+### Allow List / Deny List
+Specify wildcard (`*`) patterns for URLs, one pattern per line. URLs matching the deny list are always excluded (deny takes priority). If the allow list is empty, everything is allowed unless denied.
+
+### Uniquify
+Skip entries in a day whose title and path match an already-output entry, absorbing differences in query strings. Default: on.
+
+## Added Commands
+
+### Show excluded URLs for this note
+While a generated history note is open, run this command from the command palette to show a modal (select-from-list) listing the URLs excluded for that note's date (not allowed, or denied), along with their title and the reason for exclusion. Selecting an item opens that URL in the browser.
 
 ---
 
