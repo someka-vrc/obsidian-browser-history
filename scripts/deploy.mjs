@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 function loadEnvFile(path) {
@@ -50,3 +50,22 @@ for (const file of files) {
   copyFileSync(src, resolve(targetDir, file))
   console.log(`Copied ${file} -> ${targetDir}`)
 }
+
+// The Hot Reload plugin (pjeby/hot-reload) watches for changes to a `.hotreload`
+// file inside the plugin folder and reloads the plugin when it's touched.
+function touchHotReload(dir) {
+  const file = resolve(dir, '.hotreload')
+  const now = new Date()
+  try {
+    if (existsSync(file))
+      utimesSync(file, now, now)
+    else
+      writeFileSync(file, '')
+    console.log(`Touched ${file}`)
+  }
+  catch (e) {
+    console.warn(`Failed to touch .hotreload (ignored): ${e.message}`)
+  }
+}
+
+touchHotReload(targetDir)
