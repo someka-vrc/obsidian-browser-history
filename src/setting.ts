@@ -1,4 +1,5 @@
 import type BrowserHistoryPlugin from './main'
+import type { TextComponent } from 'obsidian'
 import { PluginSettingTab, Setting } from 'obsidian'
 import { BrowserType, detectBrowserType, getDefaultBrowserPath } from './browser'
 import { checkConnection, syncNotes } from './commands'
@@ -6,7 +7,9 @@ import { dayjs } from './dayjs'
 import { notify } from './utils'
 
 export interface BrowserHistoryPluginSettings {
+  /** @deprecated migrated to `sqlitePaths` on load */
   sqlitePath?: string
+  sqlitePaths?: string[]
   folderPath: string
   fromDate?: string
   syncOnStartup?: boolean
@@ -19,6 +22,7 @@ export interface BrowserHistoryPluginSettings {
 }
 
 export const DEFAULT_SETTINGS: BrowserHistoryPluginSettings = {
+  sqlitePaths: [],
   folderPath: 'Browser History',
   showTime: false,
   allowList: [],
@@ -54,40 +58,69 @@ export class BrowserHistorySettingTab extends PluginSettingTab {
   private addDatabaseLocationSetting() {
     const defaultPath = getDefaultBrowserPath()
 
-    // Auto-set path if not already set
-    if (!this.plugin.settings.sqlitePath) {
-      this.plugin.settings.sqlitePath = getDefaultBrowserPath()
+    // Auto-set an initial path if none is configured yet
+    if (!this.plugin.settings.sqlitePaths?.length) {
+      this.plugin.settings.sqlitePaths = [defaultPath]
       this.plugin.saveSettings()
     }
 
-    const selectedBrowser = detectBrowserType(this.plugin.settings.sqlitePath) || BrowserType.CHROME
+    const sqlitePaths = this.plugin.settings.sqlitePaths!
 
     new Setting(this.containerEl)
       .setName('Database location')
-      .setDesc(`Path to your browser history database file. Select your browser to automatically set the database path.`)
-      .addDropdown(dropdown => dropdown
-        .addOption(BrowserType.CHROME, 'Chrome')
-        .addOption(BrowserType.FIREFOX, 'Firefox')
-        .addOption(BrowserType.BRAVE, 'Brave')
-        .addOption(BrowserType.UNKNOWN, 'Manual (Custom Path)')
-        .setValue(selectedBrowser)
-        .onChange(async (value) => {
-          // Auto-update the database path when browser is selected
-          this.plugin.settings.sqlitePath = getDefaultBrowserPath(value as BrowserType)
+      .setDesc('Path(s) to your browser history database file. You can add multiple databases (e.g. several browsers or profiles); their history will be merged. Select a browser to automatically set its database path.')
+      .addButton(button => button
+        .setButtonText('Add database')
+        .onClick(async () => {
+          sqlitePaths.push('')
           await this.plugin.saveSettings()
-          // Update the text input value
-          const inputEl = dropdown.selectEl.nextElementSibling as HTMLInputElement
-          inputEl.value = this.plugin.settings.sqlitePath
+          this.display()
         }),
       )
-      .addText(text => text
-        .setPlaceholder(`Example: ${defaultPath}`)
-        .setValue(this.plugin.settings.sqlitePath!)
-        .onChange(async (value) => {
-          this.plugin.settings.sqlitePath = value
-          await this.plugin.saveSettings()
-        }),
-      )
+
+    sqlitePaths.forEach((path, index) => {
+      const selectedBrowser = detectBrowserType(path) || BrowserType.CHROME
+      let textComponent: TextComponent
+
+      const setting = new Setting(this.containerEl)
+        .setName(`Database ${index + 1}`)
+        .addDropdown(dropdown => dropdown
+          .addOption(BrowserType.CHROME, 'Chrome')
+          .addOption(BrowserType.FIREFOX, 'Firefox')
+          .addOption(BrowserType.BRAVE, 'Brave')
+          .addOption(BrowserType.UNKNOWN, 'Manual (Custom Path)')
+          .setValue(selectedBrowser)
+          .onChange(async (value) => {
+            // Auto-update the database path when browser is selected
+            const newPath = getDefaultBrowserPath(value as BrowserType)
+            sqlitePaths[index] = newPath
+            await this.plugin.saveSettings()
+            textComponent.setValue(newPath)
+          }),
+        )
+        .addText((text) => {
+          textComponent = text
+          text
+            .setPlaceholder(`Example: ${defaultPath}`)
+            .setValue(path)
+            .onChange(async (value) => {
+              sqlitePaths[index] = value
+              await this.plugin.saveSettings()
+            })
+        })
+
+      if (sqlitePaths.length > 1) {
+        setting.addExtraButton(button => button
+          .setIcon('trash')
+          .setTooltip('Remove this database')
+          .onClick(async () => {
+            sqlitePaths.splice(index, 1)
+            await this.plugin.saveSettings()
+            this.display()
+          }),
+        )
+      }
+    })
   }
 
   private addCheckConnectionSetting() {

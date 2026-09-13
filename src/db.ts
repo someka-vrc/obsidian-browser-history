@@ -42,6 +42,10 @@ interface LoadOptions {
   sqlitePath: string
 }
 
+interface LoadMultipleOptions {
+  sqlitePaths: string[]
+}
+
 export class DBClient {
   db: Database
   browserType: BrowserType
@@ -135,5 +139,55 @@ export class DBClient {
     const results = this.db.exec(query)
     const records = results.map(toRecords)[0] || []
     return records[0]?.count as number || 0
+  }
+}
+
+/**
+ * Aggregates multiple browser history databases behind the same interface as a single `DBClient`.
+ */
+export class MultiDBClient {
+  clients: DBClient[]
+
+  constructor(clients: DBClient[]) {
+    this.clients = clients
+  }
+
+  static async load(options: LoadMultipleOptions) {
+    const sqlitePaths = options.sqlitePaths.filter(Boolean)
+    const clients: DBClient[] = []
+    const errors: string[] = []
+
+    for (const sqlitePath of sqlitePaths) {
+      try {
+        clients.push(await DBClient.load({ sqlitePath }))
+      }
+      catch (e) {
+        errors.push(`${sqlitePath}: ${e}`)
+      }
+    }
+
+    if (!clients.length)
+      throw new Error(errors.join('\n') || 'No database path specified')
+
+    if (errors.length)
+      console.warn(`Failed to load some databases:\n${errors.join('\n')}`)
+
+    return new MultiDBClient(clients)
+  }
+
+  getUrls(params: GetUrlsParams) {
+    const { limit, desc = true } = params
+    const merged = this.clients.flatMap(client => client.getUrls({ ...params, limit: undefined }))
+
+    merged.sort((a, b) => {
+      const diff = (a.visit_time as number) - (b.visit_time as number)
+      return desc ? -diff : diff
+    })
+
+    return limit ? merged.slice(0, limit) : merged
+  }
+
+  getUrlCount() {
+    return this.clients.reduce((sum, client) => sum + client.getUrlCount(), 0)
   }
 }

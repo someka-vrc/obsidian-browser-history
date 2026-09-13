@@ -3,6 +3,8 @@
 This is a fork customized for my own workflow.
 
 ## Settings
+### Database Location (Modified)
+You can now specify multiple browser history database files; their history is merged together.
 
 ### Show Time (Added)
 Toggle whether to show the `HH:mm` time on each line. Default: off.

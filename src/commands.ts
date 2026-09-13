@@ -2,18 +2,18 @@ import type { TFile } from 'obsidian'
 import type { ExcludedEntry } from './excludedUrlsModal'
 import type BrowserHistoryPlugin from './main'
 import { dayjs } from './dayjs'
-import { DBClient } from './db'
+import { MultiDBClient } from './db'
 import { ExcludedUrlsModal } from './excludedUrlsModal'
 import { classifyRecords } from './filter'
 import { log, notify } from './utils'
 
 /**
- * Loads the browser history database.
+ * Loads the browser history database(s).
  */
 export async function loadDB(plugin: BrowserHistoryPlugin) {
   try {
-    return plugin.db = await DBClient.load({
-      sqlitePath: plugin.settings.sqlitePath || '',
+    return plugin.db = await MultiDBClient.load({
+      sqlitePaths: plugin.settings.sqlitePaths || [],
     })
   }
   catch (e) {

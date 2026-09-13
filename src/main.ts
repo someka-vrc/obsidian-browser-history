@@ -1,4 +1,4 @@
-import type { DBClient } from './db'
+import type { MultiDBClient } from './db'
 import type { BrowserHistoryPluginSettings } from './setting'
 import { Plugin } from 'obsidian'
 import { isHistoryNoteFile, openTodayHistory, showExcludedUrlsForFile, syncNotes } from './commands'
@@ -7,7 +7,7 @@ import { BrowserHistorySettingTab, DEFAULT_SETTINGS } from './setting'
 export default class BrowserHistoryPlugin extends Plugin {
   settings: BrowserHistoryPluginSettings
   autoSyncId: number | undefined
-  db: DBClient
+  db: MultiDBClient
 
   async onload() {
     await this.loadSettings()
@@ -48,6 +48,11 @@ export default class BrowserHistoryPlugin extends Plugin {
 
   async loadSettings() {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData())
+
+    // Migrate legacy single-path setting to the sqlitePaths array
+    if (this.settings.sqlitePath && !this.settings.sqlitePaths?.length)
+      this.settings.sqlitePaths = [this.settings.sqlitePath]
+    delete this.settings.sqlitePath
   }
 
   async saveSettings() {
