@@ -5,9 +5,9 @@ import { isHistoryNoteFile, openTodayHistory, showExcludedUrlsForFile, syncNotes
 import { BrowserHistorySettingTab, DEFAULT_SETTINGS } from './setting'
 
 export default class BrowserHistoryPlugin extends Plugin {
-  settings: BrowserHistoryPluginSettings
+  settings!: BrowserHistoryPluginSettings
   autoSyncId: number | undefined
-  db: MultiDBClient
+  db!: MultiDBClient
 
   async onload() {
     await this.loadSettings()
