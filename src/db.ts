@@ -1,4 +1,4 @@
-import type { Database, QueryExecResult, SqlValue } from 'sql.js'
+import type { Database, QueryExecResult, SqlJsStatic, SqlValue } from 'sql.js'
 import * as fs from 'node:fs'
 import initSqlJs from 'sql.js'
 
@@ -46,6 +46,19 @@ interface LoadMultipleOptions {
   sqlitePaths: string[]
 }
 
+let sqlJsPromise: Promise<SqlJsStatic> | undefined
+
+/**
+ * Initializes sql.js (and its WASM instance) only once and shares it across all databases.
+ */
+function getSqlJs() {
+  sqlJsPromise ??= initSqlJs({ wasmBinary: sqlWasm }).catch((e) => {
+    sqlJsPromise = undefined
+    throw e
+  })
+  return sqlJsPromise
+}
+
 export class DBClient {
   db: Database
   browserType: BrowserType
@@ -56,7 +69,7 @@ export class DBClient {
   }
 
   static async load(options: LoadOptions) {
-    const SQL = await initSqlJs({ wasmBinary: sqlWasm })
+    const SQL = await getSqlJs()
     const dbBuffer = fs.readFileSync(options.sqlitePath)
     const db = new SQL.Database(dbBuffer)
 
@@ -72,6 +85,13 @@ export class DBClient {
     }
 
     return new DBClient(db, browserType)
+  }
+
+  /**
+   * Releases the WASM heap held by this database.
+   */
+  close() {
+    this.db.close()
   }
 
   getUrls(params: GetUrlsParams) {
@@ -173,6 +193,11 @@ export class MultiDBClient {
       console.warn(`Failed to load some databases:\n${errors.join('\n')}`)
 
     return new MultiDBClient(clients)
+  }
+
+  close() {
+    for (const client of this.clients)
+      client.close()
   }
 
   getUrls(params: GetUrlsParams) {

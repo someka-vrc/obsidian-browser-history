@@ -8,16 +8,29 @@ import { classifyRecords } from './filter'
 import { log, notify } from './utils'
 
 /**
- * Loads the browser history database(s).
+ * Loads the browser history database(s), runs `fn`, and always releases the database afterwards.
+ * Returns `undefined` if the database could not be loaded.
  */
-export async function loadDB(plugin: BrowserHistoryPlugin) {
+async function withDB<T>(
+  plugin: BrowserHistoryPlugin,
+  fn: (db: MultiDBClient) => Promise<T> | T,
+): Promise<T | undefined> {
+  let db: MultiDBClient
   try {
-    return plugin.db = await MultiDBClient.load({
+    db = await MultiDBClient.load({
       sqlitePaths: plugin.settings.sqlitePaths || [],
     })
   }
   catch (e) {
     notify(`Failed to load database: ${e}`)
+    return
+  }
+
+  try {
+    return await fn(db)
+  }
+  finally {
+    db.close()
   }
 }
 
@@ -25,28 +38,26 @@ export async function loadDB(plugin: BrowserHistoryPlugin) {
  * Tests database connection.
  */
 export async function checkConnection(plugin: BrowserHistoryPlugin) {
-  const db = await loadDB(plugin)
-  if (!db)
-    return
+  await withDB(plugin, (db) => {
+    const count = db.getUrlCount().toLocaleString()
+    const data = db.getUrls({ limit: 1, desc: false }).at(0)
+    const oldestDate = data
+      ? dayjs(data.visit_time as number).format('YYYY-MM-DD')
+      : ''
 
-  const count = db.getUrlCount().toLocaleString()
-  const data = db.getUrls({ limit: 1, desc: false }).at(0)
-  const oldestDate = data
-    ? dayjs(data.visit_time as number).format('YYYY-MM-DD')
-    : ''
-
-  const message = `Successfully connected. ${count} records found${count ? ` (oldest: ${oldestDate})` : ''}`
-  notify(message)
+    const message = `Successfully connected. ${count} records found${count ? ` (oldest: ${oldestDate})` : ''}`
+    notify(message)
+  })
 }
 
 /**
  * Syncs browser history notes for the specified date range.
  */
-export async function syncNotes(plugin: BrowserHistoryPlugin) {
-  const db = await loadDB(plugin)
-  if (!db)
-    return
+export function syncNotes(plugin: BrowserHistoryPlugin) {
+  return withDB(plugin, db => _syncNotes(plugin, db))
+}
 
+async function _syncNotes(plugin: BrowserHistoryPlugin, db: MultiDBClient) {
   const today = dayjs().startOf('day').toDate()
   const _fromDate = plugin.settings.fromDate
   const fromDate = _fromDate ? new Date(`${_fromDate} 00:00:00`) : today
@@ -56,7 +67,7 @@ export async function syncNotes(plugin: BrowserHistoryPlugin) {
   const files: TFile[] = []
 
   for (const date of dates) {
-    const path = await syncNote(plugin, date)
+    const path = await syncNote(plugin, db, date)
     if (path)
       files.push(path)
   }
@@ -70,9 +81,9 @@ export async function syncNotes(plugin: BrowserHistoryPlugin) {
 /**
  * Syncs a single history note.
  */
-async function syncNote(plugin: BrowserHistoryPlugin, date?: Date) {
+async function syncNote(plugin: BrowserHistoryPlugin, db: MultiDBClient, date?: Date) {
   try {
-    return await _syncNote(plugin, date)
+    return await _syncNote(plugin, db, date)
   }
   catch (e) {
     notify(e)
@@ -84,13 +95,14 @@ async function syncNote(plugin: BrowserHistoryPlugin, date?: Date) {
  */
 async function _syncNote(
   plugin: BrowserHistoryPlugin,
+  db: MultiDBClient,
   date = dayjs().startOf('day').toDate(),
 ) {
   const template = plugin.settings.fileNameFormat || 'YYYY-MM-DD'
   const fileName = dayjs(date).format(template)
   const filePath = [plugin.settings.folderPath, `${fileName}.md`].join('/')
 
-  const records = plugin.db.getUrls({
+  const records = db.getUrls({
     fromDate: date,
     toDate: dayjs(date).add(1, 'day').toDate(),
   })
@@ -137,14 +149,12 @@ export async function showExcludedUrlsForFile(plugin: BrowserHistoryPlugin, file
     return
   }
 
-  const db = await loadDB(plugin)
-  if (!db)
-    return
-
-  const records = db.getUrls({
+  const records = await withDB(plugin, db => db.getUrls({
     fromDate: date,
     toDate: dayjs(date).add(1, 'day').toDate(),
-  })
+  }))
+  if (!records)
+    return
 
   const { excluded: excludedRecords } = classifyRecords(records, plugin.settings)
   const excluded: ExcludedEntry[] = excludedRecords.map(({ record, reason }) => ({
@@ -176,11 +186,7 @@ export async function openTodayHistory(
   newLeaf?: boolean,
 ) {
   const { app } = plugin
-  const db = await loadDB(plugin)
-  if (!db)
-    return
-
-  const todayFile = await syncNote(plugin)
+  const todayFile = await withDB(plugin, db => syncNote(plugin, db))
 
   if (todayFile)
     app.workspace.getLeaf(newLeaf).openFile(todayFile)
