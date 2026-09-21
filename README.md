@@ -20,6 +20,20 @@ Skip entries in a day whose title and path match an already-output entry, absorb
 ### Show excluded URLs for this note (Added)
 While a generated history note is open, run this command from the command palette to show a modal (select-from-list) listing the URLs excluded for that note's date (not allowed, or denied), along with their title and the reason for exclusion. Selecting an item opens that URL in the browser.
 
+## 開発
+
+### ローカルデプロイ
+
+`local:deploy` スクリプトで、ビルド後に必要なファイル（`main.js` / `manifest.json` / `styles.css`）だけを手元の Obsidian Vault のプラグインフォルダへコピーできます。
+
+1. `.env.example` を `.env` にコピーする
+2. `.env` の `OBSIDIAN_PLUGIN_DIR` を自分の Vault のプラグインフォルダのパスに書き換える（例: `D:\Vault\.obsidian\plugins\browser-history`）
+3. 以下を実行する
+
+   ```sh
+   pnpm run local:deploy
+   ```
+
 ---
 
 Original README:
